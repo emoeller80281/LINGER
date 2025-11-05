@@ -628,7 +628,7 @@ def preprocess(
             tf_names = TF_expression(tf_names.values, gene_list, match_table, expression_matrix, output_dir)
 
             logging.info('Generating chromatin accessibility for regulatory elements...')
-            RE_pseudobulk.to_csv(output_dir + 'Openness.txt', sep='\t', header=None, index=None)
+            RE_pseudobulk.to_csv(os.path.join(output_dir, 'Openness.txt'), sep='\t', header=None, index=None)
 
             logging.info('Generating TF binding data...')
             bulk_element_names: np.ndarray = pd.read_csv(os.path.join(grn_dir, 'all_hg19.txt'), delimiter="\t", header=None)[0].values

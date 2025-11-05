@@ -4,6 +4,7 @@ from tqdm import tqdm
 import logging, sys, os
 import argparse
 import random
+import math
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -66,7 +67,7 @@ def _process_chunk(chunk):
         return len(chunk)  # or anything you like
     except Exception as e:
         logging.error(f"chunk {chunk} crashed: {e}")
-    return len(chunk)
+        return 0
 
 # Load in the adata_RNA and adata_ATAC files
 logging.info(f'Reading in the RNAseq and ATACseq h5ad adata')
@@ -83,17 +84,27 @@ logging.info(f'Calculating cell level GRNs for celltype "{args.celltype}"')
 
 num_cells = args.num_cells
 cell_names_all = adata_RNA.obs_names.tolist()
-cell_names = random.sample(cell_names_all, min(len(cell_names_all), int(num_cells)))
+cell_sample = random.sample(cell_names_all, min(len(cell_names_all), int(num_cells)))
 
-# Define the size of each chunk (e.g., process 10 cells at a time)
-chunk_size = 10  # You can adjust this depending on the number of cells and available resources
+cell_names = []
+for cell_name in cell_sample:
+    cell_dir = os.path.join(cell_outdir, f"cell_{cell_name}")
+    cell_names.append(cell_name)
+
+
+num_cpus = int(args.num_cpus)
+
+# Divide the job into chunks based on the number of CPUs available
+# Balances the number of chunks to have a load of roughly 2 jobs per CPU, helps reduce CPU idling
+chunk_size = max(1, math.ceil(len(cell_sample) / (2 * num_cpus)))
 
 # Split the cell names into chunks
 cell_name_chunks = [cell_names[i:i + chunk_size] for i in range(0, len(cell_names), chunk_size)]
 
-num_cpus = int(args.num_cpus)
+logging.info(f'Running for {len(cell_sample)} cells in {len(cell_name_chunks)} chunks of {chunk_size} cells per chunk')
 
 if args.genome == "mm10":
+    logging.info("\nLoading TF binding information for mm10")
     TFbinding = LL_net.load_TFbinding_scNN(args.tss_motif_info_path, output_dir, args.genome)
 else:
     TFbinding = None
@@ -106,12 +117,12 @@ with multiprocessing.Pool(
                 args.method, args.tss_motif_info_path,
                 args.sample_data_dir, TFbinding)
 ) as pool:
-    for processed in tqdm(
-        pool.imap_unordered(_process_chunk, cell_names),
-        total=len(cell_names),
-        desc="Cells",
-        unit="cell"
+    for _ in tqdm(
+        pool.imap_unordered(_process_chunk, cell_name_chunks),
+        total=len(cell_name_chunks),
+        desc=f"Chunks ({chunk_size} cells each)",
+        unit="chunk"
     ):
-        logging.info(f"  • Finished chunk of {processed} cells")
+        pass
 
 logging.info("All chunks complete")

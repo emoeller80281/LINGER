@@ -977,7 +977,7 @@ def training_cpu(GRNdir: str, outdir: str, activef: str, species: str) -> None:
         Lossall = np.zeros([data_merge.shape[0], 100])  # Array to store loss values for each gene
 
         chr = chrall[i]  # Current chromosome
-        logging.info(chr, flush=True)
+        logging.info(chr)
 
         # Load chromosome-specific index files
         idx_file1 = os.path.join(GRNdir, f'{chr}_index.txt')

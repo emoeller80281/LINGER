@@ -30,6 +30,7 @@ parser.add_argument("--sample_data_dir", required=True, help="Output directory f
 parser.add_argument("--organism", required=True, help='Enter "mouse" or "human"')
 parser.add_argument("--bulk_model_dir", required=True, help='Path to the LINGER trained bulk model for humans')
 parser.add_argument("--genome", required=True, help="Organism genome code")
+parser.add_argument("--cell_type", required=True, help="Organism genome code")
 parser.add_argument("--method", required=True, help="Training method")
 
 
@@ -61,17 +62,9 @@ features = pd.DataFrame({
 logging.info(features)
 barcodes = pd.DataFrame(rna_data.columns.values, columns=[0])
 
-# Detect if the cell type is K562 or macrophage
-if "K562" in args.rna_data_path:
-    cell_type = 'K562'
-elif "Macrophase" in args.rna_data_path:
-    cell_type = "macrophage"
-else:
-    cell_type = 'mESC'
-
 label = pd.DataFrame({
     'barcode_use': barcodes[0].values,  # Use the same barcodes as in the RNA and ATAC data
-    'label': [cell_type] * len(barcodes)  # Set the label to "macrophage" for all cells
+    'label': [args.cell_type] * len(barcodes)  # Set the label to "macrophage" for all cells
 })
 
 # ---------------------------------------------------
@@ -155,18 +148,18 @@ logging.info(f'Writing out pseudobulk...')
 TG_pseudobulk.to_csv(f'{args.sample_data_dir}/TG_pseudobulk.tsv', sep='\t', index=True)
 RE_pseudobulk.to_csv(f'{args.sample_data_dir}/RE_pseudobulk.tsv', sep='\t', index=True)
 
-if args.organism.lower() == 'human':
+# if args.organism.lower() == 'human':
 
-    # Overlap the region with the general GRN
-    logging.info('Overlapping the regions with the general model')
-    preprocess(
-        TG_pseudobulk,
-        RE_pseudobulk,
-        peak_file=f'{args.sample_data_dir}/Peaks.txt',
-        grn_dir=args.bulk_model_dir,
-        genome=args.genome,
-        method=args.method,
-        output_dir=args.sample_data_dir
-        )
+#     # Overlap the region with the general GRN
+#     logging.info('Overlapping the regions with the general model')
+#     preprocess(
+#         TG_pseudobulk,
+#         RE_pseudobulk,
+#         peak_file=f'{args.sample_data_dir}/Peaks.txt',
+#         grn_dir=args.bulk_model_dir,
+#         genome=args.genome,
+#         method=args.method,
+#         output_dir=args.sample_data_dir
+#         )
 
-    logging.info('Finished Preprocessing')
+#     logging.info('Finished Preprocessing')

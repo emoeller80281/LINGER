@@ -208,6 +208,7 @@ def get_TSS(GRNdir,genome,TSS_dis,outdir):
         #chrom.append('chr'+gene.contig)
         #genesymbol.append(gene.name)
     import pandas as pd
+    logging.info(GRNdir+'TSS_'+genome+'.txt')
     Tssdf = pd.read_csv(GRNdir+'TSS_'+genome+'.txt',sep='\t',header=None)
     Tssdf.columns=['chr','TSS','symbol','strand']
     Tssdf['1M-']=Tssdf['TSS']-TSS_dis
