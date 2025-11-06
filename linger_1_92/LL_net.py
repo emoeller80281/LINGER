@@ -470,89 +470,161 @@ def cell_type_specific_TF_RE_binding_score_scNN(mat,TFbinding,RE,TG,TFoverlap):
     S.index=mat.index
     return S
 
-def cell_type_specific_TF_RE_binding(GRNdir,adata_RNA,adata_ATAC,genome,celltype,outdir,method):
-    label=adata_RNA.obs['label'].values.tolist()
-    labelset=list(set(label))
-    if (celltype == 'all')&(method!='scNN'):
+def cell_type_specific_TF_RE_binding(GRNdir, adata_RNA, adata_ATAC, genome, celltype, outdir, method):
+    label = adata_RNA.obs['label'].values
+    labelset = list(set(label))
+
+    # ------------------------------------------------------------------
+    # 1) Non-scNN, all cell types: per-chromosome files
+    # ------------------------------------------------------------------
+    if (celltype == 'all') and (method != 'scNN'):
         for label0 in labelset:
-            logging.info('Generate cell type specitic TF binding potential for cell type '+ str(label0)+'...')
-            result=pd.DataFrame()
+            logging.info('Generate cell type specific TF binding potential for cell type ' + str(label0) + '...')
+            result = pd.DataFrame()
+
+            # autosomes
             for i in tqdm(range(22)):
-                chrN='chr'+str(i+1)
-                mat=pd.read_csv(os.path.join(outdir, f'{chrN}_cell_population_TF_RE_binding.txt'),sep='\t',index_col=0,header=0)
-                out=cell_type_specific_TF_RE_binding_chr(adata_RNA,adata_ATAC,GRNdir,chrN,genome,label0,outdir,method,mat)
-        #result=pd.concat([result,out],axis=1).fillna(0)
+                chrN = 'chr' + str(i + 1)
+                mat = pd.read_csv(
+                    os.path.join(outdir, f'{chrN}_cell_population_TF_RE_binding.txt'),
+                    sep='\t', index_col=0, header=0
+                )
+                out = cell_type_specific_TF_RE_binding_chr(
+                    adata_RNA, adata_ATAC, GRNdir, chrN, genome, label0, outdir, method, mat
+                )
                 result = pd.concat([result, out], join='outer', axis=0)
-            chrN='chrX'
-            mat=pd.read_csv(os.path.join(outdir,f'{chrN}_cell_population_TF_RE_binding.txt'),sep='\t',index_col=0,header=0)
-            out=cell_type_specific_TF_RE_binding_chr(adata_RNA,adata_ATAC,GRNdir,chrN,genome,label0,outdir,method,mat)
+
+            # chrX
+            chrN = 'chrX'
+            mat = pd.read_csv(
+                os.path.join(outdir, f'{chrN}_cell_population_TF_RE_binding.txt'),
+                sep='\t', index_col=0, header=0
+            )
+            out = cell_type_specific_TF_RE_binding_chr(
+                adata_RNA, adata_ATAC, GRNdir, chrN, genome, label0, outdir, method, mat
+            )
             result = pd.concat([result, out], join='outer', axis=0).fillna(0)
-            result.to_csv(os.path.join(outdir, f'cell_type_specific_TF_RE_binding_{str(label0)}.txt'), sep='\t')
-    elif method!='scNN':
-        result=pd.DataFrame()
-        chrom=['chr'+str(i+1) for i in range(22)]
-        chrom.append('chrX')
-        for i in tqdm(range(23)):
-            chrN=chrom[i]
-            mat=pd.read_csv(os.path.join(outdir, f'{chrN}_cell_population_TF_RE_binding.txt'),sep='\t',index_col=0,header=0)
-            out=cell_type_specific_TF_RE_binding_chr(adata_RNA,adata_ATAC,GRNdir,chrN,genome,celltype,outdir,method,mat)
-        #result=pd.concat([result,out],axis=1).fillna(0)
+
+            result.to_csv(
+                os.path.join(outdir, f'cell_type_specific_TF_RE_binding_{str(label0)}.txt'),
+                sep='\t'
+            )
+
+    # ------------------------------------------------------------------
+    # 2) Non-scNN, specific cell type
+    # ------------------------------------------------------------------
+    elif method != 'scNN':
+        result = pd.DataFrame()
+        chrom = ['chr' + str(i + 1) for i in range(22)] + ['chrX']
+
+        for chrN in tqdm(chrom):
+            mat = pd.read_csv(
+                os.path.join(outdir, f'{chrN}_cell_population_TF_RE_binding.txt'),
+                sep='\t', index_col=0, header=0
+            )
+            out = cell_type_specific_TF_RE_binding_chr(
+                adata_RNA, adata_ATAC, GRNdir, chrN, genome, celltype, outdir, method, mat
+            )
             result = pd.concat([result, out], join='outer', axis=0)
-        result.to_csv(os.path.join(outdir, f'cell_type_specific_TF_RE_binding_{str(celltype)}.txt'), sep='\t')
-    elif (celltype == 'all')&(method=='scNN'):
-        A=pd.read_csv(os.path.join(outdir, 'cell_population_TF_RE_binding.txt'),sep='\t',header=0,index_col=0)
-        mat,REs,TFs=list2mat(A,'RE','TF','score')
-        mat=pd.DataFrame(mat,index=REs,columns=TFs)
-        TFs = mat.columns
-        TFbinding=load_TFbinding_scNN(GRNdir,outdir,genome)
-        TG=pd.DataFrame([],index=adata_RNA.var['gene_ids'].values)
-        TFoverlap = list(set(TFs) & set(TG.index))
-        TFoverlap=list(set(TFoverlap) & set(TFbinding.columns))
+
+        result.to_csv(
+            os.path.join(outdir, f'cell_type_specific_TF_RE_binding_{str(celltype)}.txt'),
+            sep='\t'
+        )
+
+    # ------------------------------------------------------------------
+    # 3) scNN, all cell types
+    # ------------------------------------------------------------------
+    elif (celltype == 'all') and (method == 'scNN'):
+        A = pd.read_csv(
+            os.path.join(outdir, 'cell_population_TF_RE_binding.txt'),
+            sep='\t', header=0, index_col=0
+        )
+        mat, REs, TFs = list2mat(A, 'RE', 'TF', 'score')
+        mat = pd.DataFrame(mat, index=REs, columns=TFs)
+
+        TFbinding = load_TFbinding_scNN(GRNdir, outdir, genome)
+
+        # figure out TF overlap
+        TG = pd.DataFrame([], index=adata_RNA.var['gene_ids'].values)
+        TFoverlap = list(set(TFs) & set(TG.index) & set(TFbinding.columns))
+
         mat = mat[TFoverlap]
         TFbinding = TFbinding[TFoverlap]
-        REoverlap=list(set(TFbinding.index)&set(mat.index))
-        TFbinding=TFbinding.loc[REoverlap]
-        TFbinding1=np.zeros((mat.shape[0],len(TFoverlap)))
-        REidx=pd.DataFrame(range(mat.shape[0]),index=mat.index)
-        TFbinding1[REidx.loc[TFbinding.index][0].values,:]=TFbinding.values
-        TFbinding1 = pd.DataFrame(TFbinding1,index=mat.index,columns=TFoverlap)
-        TFbinding=TFbinding1.copy()
+
+        # align TFbinding rows (REs) to mat.index
+        REoverlap = list(set(TFbinding.index) & set(mat.index))
+        TFbinding = TFbinding.loc[REoverlap]
+
+        TFbinding1 = np.zeros((mat.shape[0], len(TFoverlap)))
+        REidx = pd.DataFrame(range(mat.shape[0]), index=mat.index)
+        TFbinding1[REidx.loc[TFbinding.index][0].values, :] = TFbinding.values
+        TFbinding = pd.DataFrame(TFbinding1, index=mat.index, columns=TFoverlap)
+
         for label0 in labelset:
-            logging.info('Generate cell type specitic TF binding potential for cell type '+ str(label0)+'...')
-            temp=adata_ATAC.X[np.array(label)==label0,:].mean(axis=0).T
-            RE=pd.DataFrame(temp,index=adata_ATAC.var['gene_ids'].values,columns=['values'])
-            temp=adata_RNA.X[np.array(label)==label0,:].mean(axis=0).T
-            TG=pd.DataFrame(temp,index=adata_RNA.var['gene_ids'].values,columns=['values'])
-            RE=RE.loc[REs]
-            result=cell_type_specific_TF_RE_binding_score_scNN(mat,TFbinding,RE,TG,TFoverlap)
-            result.to_csv(os.path.join(outdir, f'cell_type_specific_TF_RE_binding_{str(label0)}.txt'), sep='\t')
+            logging.info('Generate cell type specific TF binding potential for cell type ' + str(label0) + '...')
+
+            temp = adata_ATAC.X[np.array(label) == label0, :].mean(axis=0).T
+            RE = pd.DataFrame(temp, index=adata_ATAC.var['gene_ids'].values, columns=['values'])
+
+            temp = adata_RNA.X[np.array(label) == label0, :].mean(axis=0).T
+            TG = pd.DataFrame(temp, index=adata_RNA.var['gene_ids'].values, columns=['values'])
+
+            RE = RE.loc[REs]
+
+            result = cell_type_specific_TF_RE_binding_score_scNN(mat, TFbinding, RE, TG, TFoverlap)
+            result.to_csv(
+                os.path.join(outdir, f'cell_type_specific_TF_RE_binding_{str(label0)}.txt'),
+                sep='\t'
+            )
+
+    # ------------------------------------------------------------------
+    # 4) scNN, specific cell type
+    # ------------------------------------------------------------------
     else:
-        label0=celltype
-        A=pd.read_csv(os.path.join(outdir, 'cell_population_TF_RE_binding.txt'),sep='\t',header=0,index_col=0)
-        mat,REs,TFs=list2mat(A,'RE','TF','score')
-        mat=pd.DataFrame(mat,index=REs,columns=TFs)
-        TFs = mat.columns
-        TFbinding=load_TFbinding_scNN(GRNdir,outdir,genome)
-        TG=pd.DataFrame([],index=adata_RNA.var['gene_ids'].values)
-        TFoverlap = list(set(TFs) & set(TG.index))
-        TFoverlap=list(set(TFoverlap) & set(TFbinding.columns))
+        label0 = celltype
+        logging.info('Generate cell type specific TF binding potential for cell type ' + str(label0) + '...')
+
+        A = pd.read_csv(
+            os.path.join(outdir, 'cell_population_TF_RE_binding.txt'),
+            sep='\t', header=0, index_col=0
+        )
+        mat, REs, TFs = list2mat(A, 'RE', 'TF', 'score')
+        mat = pd.DataFrame(mat, index=REs, columns=TFs)
+
+        TFbinding = load_TFbinding_scNN(GRNdir, outdir, genome)
+
+        # compute TF overlap as before
+        TG_empty = pd.DataFrame([], index=adata_RNA.var['gene_ids'].values)
+        TFoverlap = list(set(TFs) & set(TG_empty.index) & set(TFbinding.columns))
+
         mat = mat[TFoverlap]
         TFbinding = TFbinding[TFoverlap]
-        RE=pd.DataFrame(temp,index=adata_ATAC.var['gene_ids'].values,columns=['values'])
-        RE=RE.loc[REs]
-        REoverlap=list(set(TFbinding.index)&set(RE.index))
-        TFbinding=TFbinding.loc[REoverlap]
-        TFbinding1=np.zeros((mat.shape[0],len(TFoverlap)))
-        REidx=pd.DataFrame(range(mat.shape[0]),index=mat.index)
-        TFbinding1[REidx.loc[TFbinding.index][0].values,:]=TFbinding.values
-        TFbinding1 = pd.DataFrame(TFbinding1,index=mat.index,columns=TFoverlap)
-        logging.info('Generate cell type specific TF binding potential for cell type '+ str(label0)+'...')
-        temp=adata_ATAC.X[np.array(label)==label0,:].mean(axis=0).T
-        temp=adata_RNA.X[np.array(label)==label0,:].mean(axis=0).T
-        TG=pd.DataFrame(temp,index=adata_RNA.var['gene_ids'].values,columns=['values'])
-        result=cell_type_specific_TF_RE_binding_score_scNN(mat,TFbinding,RE,TG,TFoverlap)
-        result.to_csv(os.path.join(outdir, f'cell_type_specific_TF_RE_binding_{str(label0)}.txt'), sep='\t')
-    
+
+        # align TFbinding rows (REs) to mat.index
+        REoverlap = list(set(TFbinding.index) & set(mat.index))
+        TFbinding = TFbinding.loc[REoverlap]
+
+        TFbinding1 = np.zeros((mat.shape[0], len(TFoverlap)))
+        REidx = pd.DataFrame(range(mat.shape[0]), index=mat.index)
+        TFbinding1[REidx.loc[TFbinding.index][0].values, :] = TFbinding.values
+        TFbinding = pd.DataFrame(TFbinding1, index=mat.index, columns=TFoverlap)
+
+        # cell-type specific averages
+        temp = adata_ATAC.X[np.array(label) == label0, :].mean(axis=0).T
+        RE = pd.DataFrame(temp, index=adata_ATAC.var['gene_ids'].values, columns=['values'])
+
+        temp = adata_RNA.X[np.array(label) == label0, :].mean(axis=0).T
+        TG = pd.DataFrame(temp, index=adata_RNA.var['gene_ids'].values, columns=['values'])
+
+        RE = RE.loc[REs]
+
+        result = cell_type_specific_TF_RE_binding_score_scNN(mat, TFbinding, RE, TG, TFoverlap)
+        result.to_csv(
+            os.path.join(outdir, f'cell_type_specific_TF_RE_binding_{str(label0)}.txt'),
+            sep='\t'
+        )
+
 
 def load_shap(chr,outdir):
     #logging.info('loading shapley value '+chr+' ...')
@@ -914,6 +986,7 @@ def cell_type_specific_cis_reg(GRNdir,adata_RNA,adata_ATAC,genome,celltype,outdi
             result=cell_type_specific_cis_reg_scNN(distance,cisGRN,RE,TG,REs,TGs)
             result.to_csv(os.path.join(outdir, f'cell_type_specific_cis_regulatory_{label0}.txt'),sep='\t',header=None,index=None)
     else: 
+        distance,cisGRN,REs,TGs=load_RE_TG_scNN(outdir)
         label0=celltype
         label0=str(label0)
         temp=adata_ATAC.X[np.array(label)==label0,:].mean(axis=0).T
