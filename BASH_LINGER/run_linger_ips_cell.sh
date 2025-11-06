@@ -15,7 +15,7 @@ set -euo pipefail
 CONDA_ENV_NAME="LINGER"
 
 GENOME='hg38'
-METHOD='scNN'
+METHOD='LINGER'
 CELLTYPE='iPSC'
 ACTIVEF='ReLU'
 ORGANISM="human"
@@ -281,7 +281,7 @@ run_pipeline() {
     #     --genome "$GENOME"
 
     run_step "Step_050.Create_Cell_Type_GRN" "${SCRIPTS_DIR}/Step_050.Create_Cell_Type_GRN.py" \
-        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+        --tss_motif_info_path "$BULK_MODEL_DIR" \
         --sample_data_dir "$SAMPLE_DATA_DIR" \
         --organism "$ORGANISM" \
         --genome "$GENOME" \
