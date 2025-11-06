@@ -16,7 +16,7 @@ CONDA_ENV_NAME="LINGER"
 
 GENOME='hg38'
 METHOD='LINGER'
-CELLTYPE='b_lymphocyte'
+CELLTYPE='CD4_T'
 ACTIVEF='ReLU'
 ORGANISM="human"
 
@@ -254,24 +254,38 @@ run_pipeline() {
         --organism "$ORGANISM" \
         --bulk_model_dir "$BULK_MODEL_DIR" \
         --genome "$GENOME" \
-        --method "$METHOD"
+        --method "$METHOD" \
+        --cell_type "$CELLTYPE"
 
-    run_step "Step_020.Linger_Training" "${SCRIPTS_DIR}/Step_020.Linger_Training.py" \
-        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+    # run_step "Step_020.Linger_Training" "${SCRIPTS_DIR}/Step_020.Linger_Training.py" \
+    #     --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+    #     --sample_data_dir "$SAMPLE_DATA_DIR" \
+    #     --organism "$ORGANISM" \
+    #     --bulk_model_dir "$BULK_MODEL_DIR" \
+    #     --genome "$GENOME" \
+    #     --method "$METHOD" \
+    #     --activef "$ACTIVEF"
+
+    # run_step "Step_030.Create_Cell_Population_GRN" "${SCRIPTS_DIR}/Step_030.Create_Cell_Population_GRN.py" \
+    #     --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+    #     --sample_data_dir "$SAMPLE_DATA_DIR" \
+    #     --organism "$ORGANISM" \
+    #     --genome "$GENOME" \
+    #     --method "$METHOD" \
+    #     --activef "$ACTIVEF"
+
+    # run_step "Step_040.Homer_Motif_Finding" "${SCRIPTS_DIR}/Step_040.Homer_Motif_Finding.py" \
+    #     --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+    #     --sample_data_dir "$SAMPLE_DATA_DIR" \
+    #     --genome "$GENOME"
+
+    run_step "Step_050.Create_Cell_Type_GRN" "${SCRIPTS_DIR}/Step_050.Create_Cell_Type_GRN.py" \
+        --tss_motif_info_path "$BULK_MODEL_DIR" \
         --sample_data_dir "$SAMPLE_DATA_DIR" \
         --organism "$ORGANISM" \
-        --bulk_model_dir "$BULK_MODEL_DIR" \
         --genome "$GENOME" \
         --method "$METHOD" \
-        --activef "$ACTIVEF"
-
-    run_step "Step_030.Create_Cell_Population_GRN" "${SCRIPTS_DIR}/Step_030.Create_Cell_Population_GRN.py" \
-        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
-        --sample_data_dir "$SAMPLE_DATA_DIR" \
-        --organism "$ORGANISM" \
-        --genome "$GENOME" \
-        --method "$METHOD" \
-        --activef "$ACTIVEF"
+        --celltype "$CELLTYPE"
 
     # run_step "Step_050.Create_Cell_Type_GRN" "${SCRIPTS_DIR}/Step_050.Create_Cell_Type_GRN.py" \
     #     --tss_motif_info_path "$BULK_MODEL_DIR" \

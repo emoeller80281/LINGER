@@ -29,6 +29,7 @@ parser = argparse.ArgumentParser(description="Train the scNN neural network mode
 parser.add_argument("--tss_motif_info_path", required=True, help="Path to the LINGER TSS information path for the organism")
 parser.add_argument("--sample_data_dir", required=True, help="Directory containing LINGER intermediate files")
 parser.add_argument("--genome", required=True, help="Organism genome code")
+parser.add_argument("--num_cpu", default=4, help="Organism genome code")
 
 args = parser.parse_args()
 
@@ -59,7 +60,7 @@ genome_map.index = genome_map['genome_short']
 
 # Construct the Homer command with the correct genome and motif file path
 motif_file = f'all_motif_rmdup_{genome_map.loc[args.genome]["Motif"]}'
-command = f'findMotifsGenome.pl {os.path.join(args.sample_data_dir, "region.txt")} {args.genome} {output_dir} -size given -find {os.path.join(args.tss_motif_info_path, motif_file)} > {os.path.join(output_dir, "MotifTarget.bed")}'
+command = f'findMotifsGenome.pl {os.path.join(args.sample_data_dir, "region.txt")} {args.genome} {output_dir} -p {args.num_cpu} -size given -find {os.path.join(args.tss_motif_info_path, motif_file)} > {os.path.join(output_dir, "MotifTarget.bed")}'
 
 # Run Homer command with error handling
 try:

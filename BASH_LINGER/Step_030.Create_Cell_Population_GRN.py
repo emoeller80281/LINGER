@@ -22,10 +22,10 @@ args = parser.parse_args()
 
 output_dir = args.sample_data_dir + "/"
 
-# if args.organism.lower() == "mouse":
-import linger_1_92.LL_net as LL_net
-# elif args.organism.lower() == "human":
-#   import linger.LL_net as LL_net
+if args.method.lower() == "scnn":
+  import linger_1_92.LL_net as LL_net
+elif args.method.lower() == "linger":
+  import linger.LL_net as LL_net
 
 # Load in the adata_RNA and adata_ATAC files
 logging.info(f'Reading in the RNAseq and ATACseq h5ad adata')

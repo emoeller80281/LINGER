@@ -538,6 +538,8 @@ def cell_type_specific_TF_RE_binding(GRNdir,adata_RNA,adata_ATAC,genome,celltype
         TFoverlap=list(set(TFoverlap) & set(TFbinding.columns))
         mat = mat[TFoverlap]
         TFbinding = TFbinding[TFoverlap]
+        RE=pd.DataFrame(temp,index=adata_ATAC.var['gene_ids'].values,columns=['values'])
+        RE=RE.loc[REs]
         REoverlap=list(set(TFbinding.index)&set(RE.index))
         TFbinding=TFbinding.loc[REoverlap]
         TFbinding1=np.zeros((mat.shape[0],len(TFoverlap)))
@@ -546,10 +548,8 @@ def cell_type_specific_TF_RE_binding(GRNdir,adata_RNA,adata_ATAC,genome,celltype
         TFbinding1 = pd.DataFrame(TFbinding1,index=mat.index,columns=TFoverlap)
         logging.info('Generate cell type specific TF binding potential for cell type '+ str(label0)+'...')
         temp=adata_ATAC.X[np.array(label)==label0,:].mean(axis=0).T
-        RE=pd.DataFrame(temp,index=adata_ATAC.var['gene_ids'].values,columns=['values'])
         temp=adata_RNA.X[np.array(label)==label0,:].mean(axis=0).T
         TG=pd.DataFrame(temp,index=adata_RNA.var['gene_ids'].values,columns=['values'])
-        RE=RE.loc[REs]
         result=cell_type_specific_TF_RE_binding_score_scNN(mat,TFbinding,RE,TG,TFoverlap)
         result.to_csv(os.path.join(outdir, f'cell_type_specific_TF_RE_binding_{str(label0)}.txt'), sep='\t')
     
