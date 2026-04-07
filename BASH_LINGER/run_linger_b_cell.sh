@@ -257,27 +257,27 @@ run_pipeline() {
         --method "$METHOD" \
         --cell_type "$CELLTYPE"
 
-    # run_step "Step_020.Linger_Training" "${SCRIPTS_DIR}/Step_020.Linger_Training.py" \
-    #     --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
-    #     --sample_data_dir "$SAMPLE_DATA_DIR" \
-    #     --organism "$ORGANISM" \
-    #     --bulk_model_dir "$BULK_MODEL_DIR" \
-    #     --genome "$GENOME" \
-    #     --method "$METHOD" \
-    #     --activef "$ACTIVEF"
+    run_step "Step_020.Linger_Training" "${SCRIPTS_DIR}/Step_020.Linger_Training.py" \
+        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+        --sample_data_dir "$SAMPLE_DATA_DIR" \
+        --organism "$ORGANISM" \
+        --bulk_model_dir "$BULK_MODEL_DIR" \
+        --genome "$GENOME" \
+        --method "$METHOD" \
+        --activef "$ACTIVEF"
 
-    # run_step "Step_030.Create_Cell_Population_GRN" "${SCRIPTS_DIR}/Step_030.Create_Cell_Population_GRN.py" \
-    #     --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
-    #     --sample_data_dir "$SAMPLE_DATA_DIR" \
-    #     --organism "$ORGANISM" \
-    #     --genome "$GENOME" \
-    #     --method "$METHOD" \
-    #     --activef "$ACTIVEF"
+    run_step "Step_030.Create_Cell_Population_GRN" "${SCRIPTS_DIR}/Step_030.Create_Cell_Population_GRN.py" \
+        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+        --sample_data_dir "$SAMPLE_DATA_DIR" \
+        --organism "$ORGANISM" \
+        --genome "$GENOME" \
+        --method "$METHOD" \
+        --activef "$ACTIVEF"
 
-    # run_step "Step_040.Homer_Motif_Finding" "${SCRIPTS_DIR}/Step_040.Homer_Motif_Finding.py" \
-    #     --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
-    #     --sample_data_dir "$SAMPLE_DATA_DIR" \
-    #     --genome "$GENOME"
+    run_step "Step_040.Homer_Motif_Finding" "${SCRIPTS_DIR}/Step_040.Homer_Motif_Finding.py" \
+        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+        --sample_data_dir "$SAMPLE_DATA_DIR" \
+        --genome "$GENOME"
 
     run_step "Step_050.Create_Cell_Type_GRN" "${SCRIPTS_DIR}/Step_050.Create_Cell_Type_GRN.py" \
         --tss_motif_info_path "$BULK_MODEL_DIR" \
@@ -286,6 +286,12 @@ run_pipeline() {
         --genome "$GENOME" \
         --method "$METHOD" \
         --celltype "$CELLTYPE"
+
+    GRN_FILE="${SAMPLE_DATA_DIR}/cell_type_specific_trans_regulatory_${CELLTYPE}.txt"
+    if [ -f "${GRN_FILE}" ]; then
+        mkdir -p "LINGER_INFERRED_GRNS/${CELLTYPE}/${SAMPLE_NUM}/"
+        cp "${GRN_FILE}" "LINGER_INFERRED_GRNS/${CELLTYPE}/${SAMPLE_NUM}/${METHOD}_cell_type_specific_trans_regulatory_${CELLTYPE}.txt"
+    fi
 
     # run_step "Step_055.Create_Cell_Level_GRN" "${SCRIPTS_DIR}/Step_055.Create_Cell_Level_GRN.py" \
     #     --tss_motif_info_path "$BULK_MODEL_DIR" \

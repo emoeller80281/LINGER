@@ -4,7 +4,7 @@ import pandas as pd
 import warnings
 import sys
 import argparse
-from scipy.sparse import csc_matrix
+import scipy.sparse as sparse
 import logging
 
 # Configure logging
@@ -103,7 +103,7 @@ logging.info(f'\tscRNAseq Dataset: {adata_RNA.shape[1]} genes, {adata_RNA.shape[
 logging.info(f'\tscATACseq Dataset: {adata_ATAC.shape[1]} peaks, {adata_ATAC.shape[0]} cells')
 
 logging.info(f'\nCombining RNA and ATAC seq barcodes')
-selected_barcode = list(set(adata_RNA.obs['barcode'].values) & set(adata_ATAC.obs['barcode'].values))
+selected_barcode = adata_RNA.obs['barcode'][adata_RNA.obs['barcode'].isin(adata_ATAC.obs['barcode'])].tolist()
 
 rna_barcode_idx = pd.DataFrame(range(adata_RNA.shape[0]), index=adata_RNA.obs['barcode'].values)
 atac_barcode_idx = pd.DataFrame(range(adata_ATAC.shape[0]), index=adata_ATAC.obs['barcode'].values)
@@ -120,9 +120,41 @@ RE_pseudobulk = pd.DataFrame([])
 
 singlepseudobulk = (adata_RNA.obs['sample'].unique().shape[0] * adata_RNA.obs['sample'].unique().shape[0] > 100)
 
+def remove_bad_cells_and_values(adata):
+    X = adata.X
+
+    if sparse.issparse(X):
+        X = X.tocsr(copy=True)
+        # Replace NaN/inf in sparse stored values
+        X.data = np.nan_to_num(X.data, nan=0.0, posinf=0.0, neginf=0.0)
+
+        # Optional hard check: reject negatives for RNA counts
+        if (X.data < 0).any():
+            raise ValueError("Matrix contains negative values; expected raw counts.")
+
+        row_sums = np.asarray(X.sum(axis=1)).ravel()
+        adata = adata[row_sums > 0].copy()
+        adata.X = X[row_sums > 0]
+    else:
+        X = np.asarray(X, dtype=np.float64)
+        X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+
+        if (X < 0).any():
+            raise ValueError("Matrix contains negative values; expected raw counts.")
+
+        row_sums = X.sum(axis=1)
+        keep = row_sums > 0
+        adata = adata[keep].copy()
+        adata.X = X[keep]
+
+    return adata
+
 for tempsample in samplelist:
     adata_RNAtemp = adata_RNA[adata_RNA.obs['sample'] == tempsample].copy()
     adata_ATACtemp = adata_ATAC[adata_ATAC.obs['sample'] == tempsample].copy()
+    
+    adata_RNAtemp = remove_bad_cells_and_values(adata_RNAtemp)
+    adata_ATACtemp = remove_bad_cells_and_values(adata_ATACtemp)
 
     TG_pseudobulk_temp, RE_pseudobulk_temp = pseudo_bulk(adata_RNAtemp, adata_ATACtemp, singlepseudobulk)
 

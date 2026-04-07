@@ -27,9 +27,8 @@ RESULTS_DIR="/gpfs/Labs/Uzun/RESULTS/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LING
 BULK_MODEL_DIR="/gpfs/Labs/Uzun/DATA/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LINGER/LINGER_BULK_MODEL"
 
 # Sample-specific variables (you must export SAMPLE_NUM before running)
-RNA_DATA_PATH="${DATA_DIR}/${SAMPLE_NUM}_RNA.csv"
-ATAC_DATA_PATH="${DATA_DIR}/${SAMPLE_NUM}_ATAC.csv"
-GROUND_TRUTH_PATH="${DATA_DIR}/RN204_macrophage_ground_truth.tsv"
+RNA_DATA_PATH="${DATA_DIR}/muon_${SAMPLE_NUM}/${SAMPLE_NUM}_RNA.csv"
+ATAC_DATA_PATH="${DATA_DIR}/muon_${SAMPLE_NUM}/${SAMPLE_NUM}_ATAC.csv"
 
 # Motif and TSS information for non-human samples (for Homer)
 TSS_MOTIF_INFO_PATH="${DATA_DIR}/LINGER_OTHER_SPECIES_TF_MOTIF_DATA/provide_data/"
@@ -49,7 +48,6 @@ validate_critical_variables() {
         SAMPLE_NUM
         RNA_DATA_PATH
         ATAC_DATA_PATH
-        GROUND_TRUTH_PATH
         SCRIPTS_DIR
         DATA_DIR
         RESULTS_DIR
@@ -283,12 +281,18 @@ run_pipeline() {
         --num_cpu 32
 
     run_step "Step_050.Create_Cell_Type_GRN" "${SCRIPTS_DIR}/Step_050.Create_Cell_Type_GRN.py" \
-        --tss_motif_info_path "$BULK_MODEL_DIR" \
+        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
         --sample_data_dir "$SAMPLE_DATA_DIR" \
         --organism "$ORGANISM" \
         --genome "$GENOME" \
         --method "$METHOD" \
         --celltype "$CELLTYPE"
+
+    GRN_FILE="${SAMPLE_DATA_DIR}/cell_type_specific_trans_regulatory_${CELLTYPE}.txt"
+    if [ -f "${GRN_FILE}" ]; then
+        mkdir -p "LINGER_INFERRED_GRNS/${CELLTYPE}/${SAMPLE_NUM}/"
+        cp "${GRN_FILE}" "LINGER_INFERRED_GRNS/${CELLTYPE}/${SAMPLE_NUM}/${METHOD}_cell_type_specific_trans_regulatory_${CELLTYPE}.txt"
+    fi
 
     # run_step "Step_055.Create_Cell_Level_GRN" "${SCRIPTS_DIR}/Step_055.Create_Cell_Level_GRN.py" \
     #     --tss_motif_info_path "$BULK_MODEL_DIR" \

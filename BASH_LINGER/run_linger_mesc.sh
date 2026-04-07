@@ -256,57 +256,68 @@ run_step() {
 }
 
 run_pipeline() {
-  # #Run each step of the pipeline with resource tracking
-  # run_step "Step_010.Linger_Load_Data" "${SCRIPTS_DIR}/Step_010.Linger_Load_Data.py" \
-  #   --rna_data_path "$RNA_DATA_PATH" \
-  #   --atac_data_path "$ATAC_DATA_PATH" \
-  #   --data_dir "$DATA_DIR" \
-  #   --sample_data_dir "$SAMPLE_DATA_DIR" \
-  #   --organism "$ORGANISM" \
-  #   --bulk_model_dir "$BULK_MODEL_DIR" \
-  #   --genome "$GENOME" \
-  #   --method "$METHOD"
+    # #Run each step of the pipeline with resource tracking
+    run_step "Step_010.Linger_Load_Data" "${SCRIPTS_DIR}/Step_010.Linger_Load_Data.py" \
+        --rna_data_path "$RNA_DATA_PATH" \
+        --atac_data_path "$ATAC_DATA_PATH" \
+        --data_dir "$DATA_DIR" \
+        --sample_data_dir "$SAMPLE_DATA_DIR" \
+        --organism "$ORGANISM" \
+        --bulk_model_dir "$BULK_MODEL_DIR" \
+        --cell_type "$CELLTYPE" \
+        --genome "$GENOME" \
+        --method "$METHOD"
 
-  # run_step "Step_020.Linger_Training" "${SCRIPTS_DIR}/Step_020.Linger_Training.py" \
-  #   --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
-  #   --genome "$GENOME" \
-  #   --method "$METHOD" \
-  #   --sample_data_dir "$SAMPLE_DATA_DIR" \
-  #   --activef "$ACTIVEF" \
-  #   --organism "$ORGANISM" \
-  #   --bulk_model_dir "$BULK_MODEL_DIR"
+    run_step "Step_020.Linger_Training" "${SCRIPTS_DIR}/Step_020.Linger_Training.py" \
+        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+        --genome "$GENOME" \
+        --method "$METHOD" \
+        --sample_data_dir "$SAMPLE_DATA_DIR" \
+        --activef "$ACTIVEF" \
+        --organism "$ORGANISM" \
+        --bulk_model_dir "$BULK_MODEL_DIR"
 
-#   run_step "Step_030.Create_Cell_Population_GRN" "${SCRIPTS_DIR}/Step_030.Create_Cell_Population_GRN.py" \
-#     --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
-#     --genome "$GENOME" \
-#     --method "$METHOD" \
-#     --sample_data_dir "$SAMPLE_DATA_DIR" \
-#     --activef "$ACTIVEF" \
-#     --organism "$ORGANISM" 
+    run_step "Step_030.Create_Cell_Population_GRN" "${SCRIPTS_DIR}/Step_030.Create_Cell_Population_GRN.py" \
+        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+        --genome "$GENOME" \
+        --method "$METHOD" \
+        --sample_data_dir "$SAMPLE_DATA_DIR" \
+        --activef "$ACTIVEF" \
+        --organism "$ORGANISM" 
 
-#   run_step "Step_040.Homer_Motif_Finding" "${SCRIPTS_DIR}/Step_040.Homer_Motif_Finding.py" \
-#     --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
-#     --sample_data_dir "$SAMPLE_DATA_DIR" \
-#     --genome "$GENOME"
+    run_step "Step_040.Homer_Motif_Finding" "${SCRIPTS_DIR}/Step_040.Homer_Motif_Finding.py" \
+        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+        --sample_data_dir "$SAMPLE_DATA_DIR" \
+        --genome "$GENOME"
 
-#   run_step "Step_050.Create_Cell_Type_GRN" "${SCRIPTS_DIR}/Step_050.Create_Cell_Type_GRN.py" \
-#     --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
-#     --genome "$GENOME" \
-#     --method "$METHOD" \
-#     --sample_data_dir "$SAMPLE_DATA_DIR" \
-#     --celltype "$CELLTYPE" \
-#     --organism "$ORGANISM"
+    run_step "Step_050.Create_Cell_Type_GRN" "${SCRIPTS_DIR}/Step_050.Create_Cell_Type_GRN.py" \
+        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+        --genome "$GENOME" \
+        --method "$METHOD" \
+        --sample_data_dir "$SAMPLE_DATA_DIR" \
+        --celltype "$CELLTYPE" \
+        --organism "$ORGANISM"
 
-  run_step "Step_055.Create_Cell_Level_GRN.py" "${SCRIPTS_DIR}/Step_055.Create_Cell_Level_GRN.py" \
-    --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
-    --genome "$GENOME" \
-    --method "$METHOD" \
-    --sample_data_dir "$SAMPLE_DATA_DIR" \
-    --celltype "$CELLTYPE" \
-    --organism "$ORGANISM" \
-    --num_cpus $NUM_CPU \
-    --num_cells 1000
+    GRN_FILE="${SAMPLE_DATA_DIR}/cell_type_specific_trans_regulatory_${CELLTYPE}.txt"
+    if [ -f "${GRN_FILE}" ]; then
+        mkdir -p "LINGER_INFERRED_GRNS/${CELLTYPE}/${SAMPLE_NUM}/"
+        cp "${GRN_FILE}" "LINGER_INFERRED_GRNS/${CELLTYPE}/${SAMPLE_NUM}/${METHOD}_cell_type_specific_trans_regulatory_${CELLTYPE}.txt"
+    fi
+
+
+
+    # run_step "Step_055.Create_Cell_Level_GRN.py" "${SCRIPTS_DIR}/Step_055.Create_Cell_Level_GRN.py" \
+    #     --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+    #     --genome "$GENOME" \
+    #     --method "$METHOD" \
+    #     --sample_data_dir "$SAMPLE_DATA_DIR" \
+    #     --celltype "$CELLTYPE" \
+    #     --organism "$ORGANISM" \
+    #     --num_cpus $NUM_CPU \
+    #     --num_cells 1000
 }
+
+
 
 # ==========================================
 #               MAIN

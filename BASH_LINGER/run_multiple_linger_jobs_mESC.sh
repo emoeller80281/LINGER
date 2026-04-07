@@ -87,7 +87,7 @@ SAMPLE_NUMS=(
     # "5000_cells_E8.5_CRISPR_T_WT"
     # "5000_cells_E8.5_rep1"
     # "5000_cells_E8.5_rep2"
-    "filtered_L2_E7.5_rep1"
+    # "filtered_L2_E7.5_rep1"
     # "filtered_L2_E7.5_rep2"
     # "filtered_L2_E7.75_rep1"
     # "filtered_L2_E8.0_rep1"
@@ -97,6 +97,11 @@ SAMPLE_NUMS=(
     # "filtered_L2_E8.5_rep2"
     # "filtered_L2_E8.75_rep1"
     # "filtered_L2_E8.75_rep2"
+
+    # muon_E7.5_rep1
+    # muon_E7.5_rep2
+    muon_E8.5_rep1
+    muon_E8.5_rep2
 )
 
 # Submit each SAMPLE_NUM as a separate job
