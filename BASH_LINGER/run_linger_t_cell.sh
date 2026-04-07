@@ -284,7 +284,7 @@ run_pipeline() {
     GRN_FILE="${SAMPLE_DATA_DIR}/cell_type_specific_trans_regulatory_${CELLTYPE}.txt"
     if [ -f "${GRN_FILE}" ]; then
         mkdir -p "LINGER_INFERRED_GRNS/${CELLTYPE}/${SAMPLE_NUM}/"
-        cp "${GRN_FILE}" "LINGER_INFERRED_GRNS/${CELLTYPE}/${SAMPLE_NUM}/${METHOD}_cell_type_specific_trans_regulatory_${CELLTYPE}.txt"
+        cp "${GRN_FILE}" "LINGER_INFERRED_GRNS/${CELLTYPE}/${SAMPLE_NUM}/linger_${CELLTYPE}_${SAMPLE_NUM}.txt"
     fi
 
     # run_step "Step_055.Create_Cell_Level_GRN" "${SCRIPTS_DIR}/Step_055.Create_Cell_Level_GRN.py" \
