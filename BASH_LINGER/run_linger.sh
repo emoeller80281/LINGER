@@ -295,6 +295,13 @@ run_pipeline() {
         cp "${GRN_FILE}" "LINGER_INFERRED_GRNS/linger_${CELLTYPE}_${SAMPLE_NUM}.tsv"
     fi
 
+    run_step "Step_060.Format_Inferred_GRN" "${SCRIPTS_DIR}/Step_060.Format_Inferred_Grn.py" \
+        --output_dir "LINGER_INFERRED_GRNS/" \
+        --inferred_grn_file "linger_${CELLTYPE}_${SAMPLE_NUM}.tsv" \
+        --cell_type "$CELL_TYPE" \
+        --sample_name "$SAMPLE_NAME"
+
+
     # run_step "Step_055.Create_Cell_Level_GRN.py" "${SCRIPTS_DIR}/Step_055.Create_Cell_Level_GRN.py" \
     #     --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
     #     --genome "$GENOME" \
