@@ -2,8 +2,8 @@
 
 #SBATCH -p compute
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=64
-#SBATCH --mem-per-cpu=3G
+#SBATCH --cpus-per-task=23
+#SBATCH --mem-per-cpu=16G
 
 set -euo pipefail
 
@@ -14,23 +14,19 @@ set -euo pipefail
 # Conda environment name
 CONDA_ENV_NAME="LINGER"
 
+METHOD="scNN"
+
 ACTIVEF='ReLU'
 
-# Scripts and data paths
-SCRIPTS_DIR="/gpfs/Labs/Uzun/SCRIPTS/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LINGER/BASH_LINGER"
-RESULTS_DIR="/gpfs/Labs/Uzun/RESULTS/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LINGER/${CELL_TYPE}_RESULTS"
-
+BASE_DIR="${PROJECT_DIR}/src/LINGER"
+LINGER_RESULTS_DIR="${RESULTS_DIR}/LINGER"
 TSS_MOTIF_INFO_PATH="${DATA_DIR}/LINGER_OTHER_SPECIES_TF_MOTIF_DATA/provide_data/"
 
-# Sample-specific variables (you must export SAMPLE_NAME before running)
-RNA_DATA_PATH="${DATA_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}_RNA.csv"
-ATAC_DATA_PATH="${DATA_DIR}/${SAMPLE_NAME}/${SAMPLE_NAME}_ATAC.csv"
-
-# Paths in the results directory
-SAMPLE_RESULTS_DIR="${RESULTS_DIR}/${SAMPLE_NAME}"
-SAMPLE_DATA_DIR="${DATA_DIR}/LINGER_TRAINED_MODELS/${SAMPLE_NAME}"
-
-LOG_DIR="${SCRIPTS_DIR}/LOGS"
+if [[ "$SPECIES" == "human" ]]; then
+    GENOME="hg38"
+elif [[ "$SPECIES" == "mouse" ]]; then
+    GENOME="mm10"
+fi
 
 # ==========================================
 #             SETUP FUNCTIONS
@@ -40,9 +36,9 @@ validate_critical_variables() {
     echo "[INFO] Validating required variables..."
     local required_vars=(
         SAMPLE_NAME
-        RNA_DATA_PATH
-        ATAC_DATA_PATH
-        SCRIPTS_DIR
+        RNA_FILE
+        ATAC_FILE
+        BASE_DIR
         DATA_DIR
         RESULTS_DIR
     )
@@ -97,7 +93,7 @@ activate_conda_env() {
 check_input_files() {
     echo ""
     echo "[INFO] Checking if input RNA and ATAC files exist..."
-    for file in "$RNA_DATA_PATH" "$ATAC_DATA_PATH"; do
+    for file in "$RNA_FILE" "$ATAC_FILE"; do
         if [ ! -f "$file" ]; then
             echo "[ERROR] Missing input file: $file"
             exit 1
@@ -110,7 +106,7 @@ check_input_files() {
 setup_directories() {
     echo ""
     echo "[INFO] Setting up necessary directories..."
-    mkdir -p "$SAMPLE_RESULTS_DIR" "$SAMPLE_DATA_DIR"
+    mkdir -p "$LINGER_RESULTS_DIR"
     echo "    - Directories created."
 }
 
@@ -128,6 +124,8 @@ check_or_install_tss_locations() {
         echo "[WARN] TSS location not found at ${TSS_MOTIF_INFO_PATH}"
         echo "    - Attempting to download and extract..."
 
+        mkdir -p "${DATA_DIR}/LINGER_OTHER_SPECIES_TF_MOTIF_DATA"
+
         confirm_code=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate \
             'https://drive.usercontent.google.com/download?id=1Dog5JTS_SNIoa5aohgZmOWXrTUuAKHXV' -O- | \
             sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1/p')
@@ -138,11 +136,34 @@ check_or_install_tss_locations() {
 
         rm -rf /tmp/cookies.txt
 
-        tar -xzf "${DATA_DIR}/LINGER_OTHER_SPECIES_TF_MOTIF_DATA/provide_data.tar.gz" -C "${DATA_DIR}"
-
-        echo "    - Extraction complete."
+        tar -xzf "${DATA_DIR}/LINGER_OTHER_SPECIES_TF_MOTIF_DATA/provide_data.tar.gz" -C "${DATA_DIR}/LINGER_OTHER_SPECIES_TF_MOTIF_DATA/"
+        echo "    - Downloaded and extracted TSS location information to ${TSS_MOTIF_INFO_PATH}"
     else
         echo "    - TSS location information exists"
+    fi
+
+    # Download hg38 TSS locations from ENSEMBL biomart using the provided script if not present
+    hg38_tss_file="${TSS_MOTIF_INFO_PATH}/TSS_hg38.txt"
+    if [ ! -f "${hg38_tss_file}" ]; then
+        python3 "${BASE_DIR}/download_hg38_ensembl_tss.py" \
+            --save_file "${hg38_tss_file}"
+        
+        if [ -f "${hg38_tss_file}" ]; then
+            echo "    - Successfully downloaded hg38 TSS location file."
+
+
+        else
+            echo "[ERROR] Failed to download hg38 TSS location file."
+            exit 1
+        fi
+    fi
+
+    # Add hg38 TSS information to the genome_map_homer.txt file used by the Homer motif finding step
+    HOMER_GENOME_MAP_FILE="${TSS_MOTIF_INFO_PATH}/genome_map_homer.txt"
+    touch "${HOMER_GENOME_MAP_FILE}"
+    if ! grep -Eq '^hg38([[:space:]]|$)' "${HOMER_GENOME_MAP_FILE}"; then
+        printf 'hg38\thuman\tHomo_sapiens\tGRCh38\t102\tMammal\n' >> "${HOMER_GENOME_MAP_FILE}"
+        echo "    - Added hg38 information to genome_map_homer.txt"
     fi
 }
 
@@ -155,8 +176,8 @@ check_homer() {
         echo "[ERROR] Homer is not installed or not in PATH."
         echo "    - Installing Homer..."
         
-        # You can define your install directory here
-        HOMER_INSTALL_DIR="${HOME}/homer"
+        # Homer installation directory
+        HOMER_INSTALL_DIR="${DATA_DIR}/homer"
 
         mkdir -p "$HOMER_INSTALL_DIR"
         cd "$HOMER_INSTALL_DIR" || exit 1
@@ -190,12 +211,12 @@ check_homer() {
     else
         echo "[WARN] Homer genome '${GENOME}' not found. Installing..."
         perl "${HOMER_BASE}/share/homer/configureHomer.pl" -install "${GENOME}" \
-            2> "${LOG_DIR}/${SAMPLE_NAME}/install_homer_species.log"
+            2> "${LOG_DIR}/install_homer_species.log"
         
         if grep -q "${GENOME}" "$HOMER_CONFIG"; then
             echo "[INFO] Successfully installed '${GENOME}'."
         else
-            echo "[ERROR] Failed to install '${GENOME}'. Check log: ${LOG_DIR}/${SAMPLE_NAME}/install_homer_species.log"
+            echo "[ERROR] Failed to install '${GENOME}'. Check log: ${LOG_DIR}/install_homer_species.log"
             exit 1
         fi
     fi
@@ -242,78 +263,59 @@ run_step() {
   shift 2  # Remove the first two arguments
   echo ""
   echo "Running $step_name..."
-  /usr/bin/time -v python3 "$script_path" "$@" 2> "${LOG_DIR}/${SAMPLE_NAME}/${step_name}_time_mem.log"
+  /usr/bin/time -v python3 "$script_path" "$@" 2> "${LOG_DIR}/${step_name}_time_mem.log"
   echo "    Done!"
 }
 
 run_pipeline() {
-    # #Run each step of the pipeline with resource tracking
-    run_step "Step_010.Linger_Load_Data" "${SCRIPTS_DIR}/Step_010.Linger_Load_Data.py" \
-        --rna_data_path "$RNA_DATA_PATH" \
-        --atac_data_path "$ATAC_DATA_PATH" \
+    run_step "Step_010.Linger_Load_Data" "${BASE_DIR}/Step_010.Linger_Load_Data.py" \
+        --rna_data_path "$RNA_FILE" \
+        --atac_data_path "$ATAC_FILE" \
         --data_dir "$DATA_DIR" \
-        --sample_data_dir "$SAMPLE_DATA_DIR" \
+        --sample_data_dir "$LINGER_RESULTS_DIR" \
         --organism "$SPECIES" \
-        --bulk_model_dir "$BULK_MODEL_DIR" \
         --cell_type "$CELL_TYPE" \
         --genome "$GENOME" \
         --method "$METHOD"
 
-    run_step "Step_020.Linger_Training" "${SCRIPTS_DIR}/Step_020.Linger_Training.py" \
+    run_step "Step_020.Linger_Training" "${BASE_DIR}/Step_020.Linger_Training.py" \
         --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
         --genome "$GENOME" \
         --method "$METHOD" \
-        --sample_data_dir "$SAMPLE_DATA_DIR" \
-        --activef "$ACTIVEF" \
-        --organism "$SPECIES" \
-        --bulk_model_dir "$BULK_MODEL_DIR"
-
-    run_step "Step_030.Create_Cell_Population_GRN" "${SCRIPTS_DIR}/Step_030.Create_Cell_Population_GRN.py" \
-        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
-        --genome "$GENOME" \
-        --method "$METHOD" \
-        --sample_data_dir "$SAMPLE_DATA_DIR" \
+        --sample_data_dir "$LINGER_RESULTS_DIR" \
         --activef "$ACTIVEF" \
         --organism "$SPECIES" 
 
-    run_step "Step_040.Homer_Motif_Finding" "${SCRIPTS_DIR}/Step_040.Homer_Motif_Finding.py" \
-        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
-        --sample_data_dir "$SAMPLE_DATA_DIR" \
-        --genome "$GENOME"
-
-    run_step "Step_050.Create_Cell_Type_GRN" "${SCRIPTS_DIR}/Step_050.Create_Cell_Type_GRN.py" \
+    run_step "Step_030.Create_Cell_Population_GRN" "${BASE_DIR}/Step_030.Create_Cell_Population_GRN.py" \
         --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
         --genome "$GENOME" \
         --method "$METHOD" \
-        --sample_data_dir "$SAMPLE_DATA_DIR" \
-        --CELL_TYPE "$CELL_TYPE" \
-        --organism "$SPECIES"
+        --sample_data_dir "$LINGER_RESULTS_DIR" \
+        --activef "$ACTIVEF" \
+        --organism "$SPECIES" \
+        --num_cpu "$NUM_CPU"
 
-    GRN_FILE="${SAMPLE_DATA_DIR}/cell_type_specific_trans_regulatory_${CELL_TYPE}.txt"
-    if [ -f "${GRN_FILE}" ]; then
-        mkdir -p "LINGER_INFERRED_GRNS/"
-        cp "${GRN_FILE}" "LINGER_INFERRED_GRNS/linger_${CELLTYPE}_${SAMPLE_NUM}.tsv"
-    fi
+    run_step "Step_040.Homer_Motif_Finding" "${BASE_DIR}/Step_040.Homer_Motif_Finding.py" \
+        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+        --sample_data_dir "$LINGER_RESULTS_DIR" \
+        --genome "$GENOME"
 
-    run_step "Step_060.Format_Inferred_GRN" "${SCRIPTS_DIR}/Step_060.Format_Inferred_Grn.py" \
-        --output_dir "LINGER_INFERRED_GRNS/" \
-        --inferred_grn_file "linger_${CELLTYPE}_${SAMPLE_NUM}.tsv" \
+    run_step "Step_050.Create_Cell_Type_GRN" "${BASE_DIR}/Step_050.Create_Cell_Type_GRN.py" \
+        --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
+        --genome "$GENOME" \
+        --method "$METHOD" \
+        --sample_data_dir "$LINGER_RESULTS_DIR" \
+        --cell_type "$CELL_TYPE" \
+        --organism "$SPECIES" \
+        --num_cpu "$NUM_CPU"
+
+    GRN_FILE="${LINGER_RESULTS_DIR}/cell_type_specific_trans_regulatory_${CELL_TYPE}.txt"
+    run_step "Step_060.Format_Inferred_GRN" "${BASE_DIR}/Step_060.Format_Inferred_Grn.py" \
+        --output_dir "${GRN_DIR}/LINGER/" \
+        --inferred_grn_file "${GRN_FILE}" \
         --cell_type "$CELL_TYPE" \
         --sample_name "$SAMPLE_NAME"
-
-
-    # run_step "Step_055.Create_Cell_Level_GRN.py" "${SCRIPTS_DIR}/Step_055.Create_Cell_Level_GRN.py" \
-    #     --tss_motif_info_path "$TSS_MOTIF_INFO_PATH" \
-    #     --genome "$GENOME" \
-    #     --method "$METHOD" \
-    #     --sample_data_dir "$SAMPLE_DATA_DIR" \
-    #     --CELL_TYPE "$CELL_TYPE" \
-    #     --organism "$SPECIES" \
-    #     --num_cpus $NUM_CPU \
-    #     --num_cells 1000
 }
-
-
 
 # ==========================================
 #               MAIN
@@ -328,13 +330,8 @@ activate_conda_env
 setup_directories
 set_slurm_job_name
 determine_num_cpus
-
-if [ "${SPECIES:-}" != "human" ]; then
-    echo ""
-    echo "[INFO] Organism is not set to 'human'. Checking for Homer installation and TSS location file"
-    check_or_install_tss_locations
-    check_homer
-fi
+check_or_install_tss_locations
+check_homer
 
 echo ""
 echo "===== CHECKS COMPLETE: STARTING MAIN PIPELINE ====="

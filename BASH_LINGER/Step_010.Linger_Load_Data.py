@@ -28,7 +28,6 @@ parser.add_argument("--atac_data_path", required=True, help="Path to ATAC data C
 parser.add_argument("--data_dir", required=True, help="Directory to save processed data")
 parser.add_argument("--sample_data_dir", required=True, help="Output directory for LINGER-generated data files")
 parser.add_argument("--organism", required=True, help='Enter "mouse" or "human"')
-parser.add_argument("--bulk_model_dir", required=True, help='Path to the LINGER trained bulk model for humans')
 parser.add_argument("--genome", required=True, help="Organism genome code")
 parser.add_argument("--cell_type", required=True, help="Organism genome code")
 parser.add_argument("--method", required=True, help="Training method")
@@ -38,6 +37,9 @@ parser.add_argument("--method", required=True, help="Training method")
 args = parser.parse_args()
 
 output_dir = args.sample_data_dir + "/"
+
+if not os.path.exists(args.sample_data_dir):
+    os.makedirs(args.sample_data_dir)
 
 # ----- THIS PART DIFFERS BETWEEN DATASETS -----
 logging.info('\tReading in cell labels...')
@@ -53,11 +55,14 @@ if not atac_data.index.str.contains(':').all():
 
     atac_data.to_csv(args.atac_data_path, sep=',')
 
+# ----- Create barcode/feature/matrix/label for the dataset -----
 # Create the data matrix by concatenating the RNA and ATAC data by their indices
 matrix = csc_matrix(pd.concat([rna_data, atac_data], axis=0).values)
+
+# Create the features from the gene index and the peak index, and assign a type to each feature (gene expression or peaks)
 features = pd.DataFrame({
-    0: rna_data.index.tolist() + atac_data.index.tolist(),  # Combine RNA and ATAC feature names
-    1: ['Gene Expression'] * len(rna_data.index) + ['Peaks'] * len(atac_data.index)  # Assign types
+    0: rna_data.index.tolist() + atac_data.index.tolist(),
+    1: ['Gene Expression'] * len(rna_data.index) + ['Peaks'] * len(atac_data.index)
 })
 logging.info(features)
 barcodes = pd.DataFrame(rna_data.columns.values, columns=[0])
@@ -111,16 +116,11 @@ atac_barcode_idx = pd.DataFrame(range(adata_ATAC.shape[0]), index=adata_ATAC.obs
 adata_RNA = adata_RNA[rna_barcode_idx.loc[selected_barcode][0]].copy()
 adata_ATAC = adata_ATAC[atac_barcode_idx.loc[selected_barcode][0]].copy()
 
-logging.info(f'\nGenerating pseudo-bulk / metacells')
-samplelist = list(set(adata_ATAC.obs['sample'].values))
-tempsample = samplelist[0]
-
-TG_pseudobulk = pd.DataFrame([])
-RE_pseudobulk = pd.DataFrame([])
-
-singlepseudobulk = (adata_RNA.obs['sample'].unique().shape[0] * adata_RNA.obs['sample'].unique().shape[0] > 100)
-
 def remove_bad_cells_and_values(adata):
+    """
+    Remove cells with zero counts and replace NaN/inf values in the data matrix with zeros. 
+    Also checks for negative values in the matrix, which are not expected in raw count data.
+    """
     X = adata.X
 
     if sparse.issparse(X):
@@ -149,6 +149,15 @@ def remove_bad_cells_and_values(adata):
 
     return adata
 
+logging.info(f'\nGenerating pseudo-bulk / metacells')
+samplelist = list(set(adata_ATAC.obs['sample'].values))
+
+TG_pseudobulk = pd.DataFrame([])
+RE_pseudobulk = pd.DataFrame([])
+
+# Only use one cell from each sample if there are more than 100 samples
+singlepseudobulk: bool = (adata_RNA.obs['sample'].unique().shape[0] * adata_RNA.obs['sample'].unique().shape[0] > 100)
+
 for tempsample in samplelist:
     adata_RNAtemp = adata_RNA[adata_RNA.obs['sample'] == tempsample].copy()
     adata_ATACtemp = adata_ATAC[adata_ATAC.obs['sample'] == tempsample].copy()
@@ -162,36 +171,18 @@ for tempsample in samplelist:
     RE_pseudobulk = pd.concat([RE_pseudobulk, RE_pseudobulk_temp], axis=1)
 
     RE_pseudobulk[RE_pseudobulk > 100] = 100
-
-if not os.path.exists(args.sample_data_dir):
-    os.makedirs(args.sample_data_dir)
-
-logging.info(f'Writing adata_ATAC.h5ad and adata_RNA.h5ad')
-adata_ATAC.write_h5ad(f'{args.sample_data_dir}/adata_ATAC.h5ad')
-adata_RNA.write_h5ad(f'{args.sample_data_dir}/adata_RNA.h5ad')
-
+    
 TG_pseudobulk = TG_pseudobulk.fillna(0)
 RE_pseudobulk = RE_pseudobulk.fillna(0)
-
-logging.info(f'Writing out peak gene ids')
-pd.DataFrame(adata_ATAC.var['gene_ids']).to_csv(f'{args.sample_data_dir}/Peaks.txt', header=None, index=None)
 
 logging.info(f'Writing out pseudobulk...')
 TG_pseudobulk.to_csv(f'{args.sample_data_dir}/TG_pseudobulk.tsv', sep='\t', index=True)
 RE_pseudobulk.to_csv(f'{args.sample_data_dir}/RE_pseudobulk.tsv', sep='\t', index=True)
 
-# if args.organism.lower() == 'human':
+logging.info(f'Writing adata_ATAC.h5ad and adata_RNA.h5ad')
+adata_ATAC.write_h5ad(f'{args.sample_data_dir}/adata_ATAC.h5ad')
+adata_RNA.write_h5ad(f'{args.sample_data_dir}/adata_RNA.h5ad')
 
-#     # Overlap the region with the general GRN
-#     logging.info('Overlapping the regions with the general model')
-#     preprocess(
-#         TG_pseudobulk,
-#         RE_pseudobulk,
-#         peak_file=f'{args.sample_data_dir}/Peaks.txt',
-#         grn_dir=args.bulk_model_dir,
-#         genome=args.genome,
-#         method=args.method,
-#         output_dir=args.sample_data_dir
-#         )
+logging.info(f'Writing out peak gene ids')
+pd.DataFrame(adata_ATAC.var['gene_ids']).to_csv(f'{args.sample_data_dir}/Peaks.txt', header=None, index=None)
 
-#     logging.info('Finished Preprocessing')

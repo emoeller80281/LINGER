@@ -1,180 +1,87 @@
 #!/bin/bash -l
-#SBATCH --job-name="submit_multiple_linger_jobs"
+#SBATCH --job-name="submit_multiple_scmultipredict_jobs"
+#SBATCH --output=/dev/null
+#SBATCH --error=/dev/null
+#SBATCH --time=08:00:00
 #SBATCH -p compute
 #SBATCH --nodes=1
 #SBATCH -c 1
 #SBATCH --mem=4G
-
-SCRIPT_DIR="/gpfs/Labs/Uzun/SCRIPTS/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LINGER/BASH_LINGER"
-
-MAX_JOBS_IN_QUEUE=25
-
-submit_run_linger_job() {
-    local CELL_TYPE=$1
-    local SAMPLE_NAME=$2
-    local SPECIES=$3
-    local DATA_DIR=$4
-    local BULK_MODEL_DIR=$5
-    local METHOD=$6
-    local GENOME=$7
-
-    # Ensure the log directory exists
-    mkdir -p "LOGS/${SAMPLE_NAME}"
-
-    # Submit the job
-    sbatch \
-        --export=ALL,CELL_TYPE="$CELL_TYPE",SAMPLE_NAME="$SAMPLE_NAME",SPECIES="$SPECIES",DATA_DIR="$DATA_DIR",BULK_MODEL_DIR="$BULK_MODEL_DIR",METHOD="$METHOD",GENOME="$GENOME" \
-        --output="LOGS/${SAMPLE_NAME}/${SAMPLE_NAME}.out" \
-        --error="LOGS/${SAMPLE_NAME}/${SAMPLE_NAME}.err" \
-        --job-name="LINGER_${CELL_TYPE}_${SAMPLE_NAME}" \
-        "${SCRIPT_DIR}/run_linger.sh"
-}
-
-run_mESC(){
-    local CELL_TYPE="mESC"
-
-    local SAMPLE_NAMES=(
-        # "muon_E7.5_rep1"
-        # "muon_E7.5_rep2"
-        "muon_E8.5_rep1"
-        "muon_E8.5_rep2"
-    )
-    local SPECIES="mouse"
-    local DATA_DIR="/gpfs/Labs/Uzun/DATA/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LINGER/LINGER_MESC_SC_DATA"
-    local BULK_MODEL_DIR=""
-    local METHOD="scNN"
-    local GENOME="mm10"
-
-    # Submit each SAMPLE_NAME as a separate job
-    for SAMPLE_NAME in "${SAMPLE_NAMES[@]}"; do
-        # Check how many jobs are currently queued/running
-        while [ "$(squeue -u $USER | grep LINGER | wc -l)" -ge "$MAX_JOBS_IN_QUEUE" ]; do
-            echo "[INFO] Maximum jobs ($MAX_JOBS_IN_QUEUE) in queue. Waiting 60 seconds..."
-            sleep 60
-        done
-
-        # Submit the job for each sample
-        submit_run_linger_job \
-            "$CELL_TYPE" \
-            "$SAMPLE_NAME" \
-            "$SPECIES" \
-            "$DATA_DIR" \
-            "$BULK_MODEL_DIR" \
-            "$METHOD" \
-            "$GENOME"
-
-    done
-}
-
-run_macrophage(){
-    local CELL_TYPE="macrophage"
-
-    local SAMPLE_NAMES=(
-        # "muon_buffer_1"
-        # "muon_buffer_2"
-        "muon_buffer_3"
-        "muon_buffer_4"
-    )
-    local SPECIES="human"
-    local DATA_DIR="/gpfs/Labs/Uzun/DATA/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LINGER/LINGER_MESC_SC_DATA"
-    local BULK_MODEL_DIR="/gpfs/Labs/Uzun/DATA/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LINGER/LINGER_BULK_MODEL"
-    local METHOD="scNN"
-    local GENOME="hg38"
-
-    # Motif and TSS information for homer
-    local TSS_MOTIF_INFO_PATH="${DATA_DIR}/LINGER_OTHER_SPECIES_TF_MOTIF_DATA/provide_data/"
-
-    # Submit each SAMPLE_NAME as a separate job
-    for SAMPLE_NAME in "${SAMPLE_NAMES[@]}"; do
-        # Check how many jobs are currently queued/running
-        while [ "$(squeue -u $USER | grep LINGER | wc -l)" -ge "$MAX_JOBS_IN_QUEUE" ]; do
-            echo "[INFO] Maximum jobs ($MAX_JOBS_IN_QUEUE) in queue. Waiting 60 seconds..."
-            sleep 60
-        done
-
-        # Submit the job for each sample
-        submit_run_linger_job \
-            "$CELL_TYPE" \
-            "$SAMPLE_NAME" \
-            "$SPECIES" \
-            "$DATA_DIR" \
-            "$BULK_MODEL_DIR" \
-            "$METHOD" \
-            "$GENOME"
-    done
-}
-
-run_k562(){
-    local CELL_TYPE="K562"
-
-    local SAMPLE_NAMES=(
-        "muon_sample_1"
-    )
-    local SPECIES="human"
-    local DATA_DIR="/gpfs/Labs/Uzun/DATA/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LINGER/LINGER_MESC_SC_DATA"
-    local BULK_MODEL_DIR="/gpfs/Labs/Uzun/DATA/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LINGER/LINGER_BULK_MODEL"
-    local METHOD="scNN"
-    local GENOME="hg38"
-
-    # Motif and TSS information for homer
-    local TSS_MOTIF_INFO_PATH="${DATA_DIR}/LINGER_OTHER_SPECIES_TF_MOTIF_DATA/provide_data/"
-
-    # Submit each SAMPLE_NAME as a separate job
-    for SAMPLE_NAME in "${SAMPLE_NAMES[@]}"; do
-        # Check how many jobs are currently queued/running
-        while [ "$(squeue -u $USER | grep LINGER | wc -l)" -ge "$MAX_JOBS_IN_QUEUE" ]; do
-            echo "[INFO] Maximum jobs ($MAX_JOBS_IN_QUEUE) in queue. Waiting 60 seconds..."
-            sleep 60
-        done
-
-        # Submit the job for each sample
-        submit_run_linger_job \
-            "$CELL_TYPE" \
-            "$SAMPLE_NAME" \
-            "$SPECIES" \
-            "$DATA_DIR" \
-            "$BULK_MODEL_DIR" \
-            "$METHOD" \
-            "$GENOME"
-    done
-}
-
-run_iPSC(){
-    local CELL_TYPE="iPSC"
-
-    local SAMPLE_NAMES=(
-        "muon_WT_D13_rep1"
-    )
-    local SPECIES="human"
-    local DATA_DIR="/gpfs/Labs/Uzun/DATA/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LINGER/LINGER_MESC_SC_DATA"
-    local BULK_MODEL_DIR="/gpfs/Labs/Uzun/DATA/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LINGER/LINGER_BULK_MODEL"
-    local METHOD="scNN"
-    local GENOME="hg38"
-
-    # Motif and TSS information for homer
-    local TSS_MOTIF_INFO_PATH="${DATA_DIR}/LINGER_OTHER_SPECIES_TF_MOTIF_DATA/provide_data/"
-
-    # Submit each SAMPLE_NAME as a separate job
-    for SAMPLE_NAME in "${SAMPLE_NAMES[@]}"; do
-        # Check how many jobs are currently queued/running
-        while [ "$(squeue -u $USER | grep LINGER | wc -l)" -ge "$MAX_JOBS_IN_QUEUE" ]; do
-            echo "[INFO] Maximum jobs ($MAX_JOBS_IN_QUEUE) in queue. Waiting 60 seconds..."
-            sleep 60
-        done
-
-        # Submit the job for each sample
-        submit_run_linger_job \
-            "$CELL_TYPE" \
-            "$SAMPLE_NAME" \
-            "$SPECIES" \
-            "$DATA_DIR" \
-            "$BULK_MODEL_DIR" \
-            "$METHOD" \
-            "$GENOME"
-    done
-}
+#SBATCH --array=0%10
 
 
-run_mESC
-run_macrophage
-run_k562
+# ===== SAMPLE CONFIGURATION =====
+EXPERIMENT_LIST=(
+    # "mESC|E7.5_rep1|mouse|mESC"
+    # "mESC|E7.5_rep2|mouse|mESC"
+    # "mESC|E8.5_rep1|mouse|mESC"
+    # "mESC|E8.5_rep2|mouse|mESC"
+
+    "Macrophage|buffer_1|human|Macrophage"
+    # "Macrophage|buffer_2|human|Macrophage"
+    # "Macrophage|buffer_3|human|Macrophage"
+    # "Macrophage|buffer_4|human|Macrophage"
+
+    # "iPSC|WT_D13_rep1|human|iPSC"
+
+    # "K562|sample_1|human|K562"
+)
+
+# ===== PATH CONFIGURATION =====
+# Directory containing the multiGRNtools project and subdirectories
+PROJECT_DIR="/gpfs/Labs/Uzun/SCRIPTS/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LINGER"
+
+# Directory containing the raw data files organized as RAW_DATA_DIR/<RAW_CELL_TYPE>/<SAMPLE_NAME>/{SAMPLE_NAME}_RNA.csv
+RAW_DATA_DIR="/gpfs/Labs/Uzun/DATA/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/MUON_FILTERED_COUNT_DATASETS"
+
+# Directory to store data files used by multiGRNtools (e.g. motif info, TSS info, etc.)
+DATA_DIR="/gpfs/Labs/Uzun/DATA/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LINGER/data"
+
+# Directory to store method-specific intermediate and final results
+RESULTS_DIR="/gpfs/Labs/Uzun/RESULTS/PROJECTS/2024.GRN_BENCHMARKING.MOELLER/LINGER"
+
+# Directory to the directory containing the reference genome fasta files for CellOracle
+REFERENCE_GENOME_DIR="/gpfs/Labs/Uzun/SCRIPTS/PROJECTS/2024.SINGLE_CELL_GRN_INFERENCE.MOELLER/data/genome_data/reference_genome"
+
+# Directory to store formatted GRN files from each method for benchmarking
+GRN_DIR="${PROJECT_DIR}/formatted_GRNs"
+
+mkdir -p "${RESULTS_DIR}"
+mkdir -p "${GRN_DIR}"
+mkdir -p "${DATA_DIR}"
+
+# ===== JOB SUBMISSION =====
+# Get the current experiment based on SLURM_ARRAY_TASK_ID
+TASK_ID=${SLURM_ARRAY_TASK_ID:-0}
+ARRAY_JOB_ID="${SLURM_ARRAY_JOB_ID:-$SLURM_JOB_ID}"
+ARRAY_TASK_ID="${SLURM_ARRAY_TASK_ID:-0}"
+
+if [ ${TASK_ID} -ge ${#EXPERIMENT_LIST[@]} ]; then
+    echo "ERROR: SLURM_ARRAY_TASK_ID (${TASK_ID}) exceeds number of experiments (${#EXPERIMENT_LIST[@]})"
+    exit 1
+fi
+
+EXPERIMENT_CONFIG="${EXPERIMENT_LIST[$TASK_ID]}"
+
+# Splits the experiment config string into variables: CELL_TYPE, SAMPLE_NAME, SPECIES, RAW_CELL_TYPE 
+IFS='|' read -r CELL_TYPE SAMPLE_NAME SPECIES RAW_CELL_TYPE <<< "$EXPERIMENT_CONFIG"
+
+# Construct file paths for the RNA and ATAC data based on the raw data directory structure
+rna_file="${RAW_DATA_DIR}/${RAW_CELL_TYPE}/${SAMPLE_NAME}/${SAMPLE_NAME}_RNA.csv"
+atac_file="${RAW_DATA_DIR}/${RAW_CELL_TYPE}/${SAMPLE_NAME}/${SAMPLE_NAME}_ATAC.csv"
+
+# Create a results directory for the current sample
+sample_result_dir="${RESULTS_DIR}/${CELL_TYPE}/${SAMPLE_NAME}"
+mkdir -p "${sample_result_dir}"
+
+echo "Submitting LINGER job for ${CELL_TYPE} - ${SAMPLE_NAME} (Task ID: ${ARRAY_TASK_ID})"
+
+log_dir="${PROJECT_DIR}/LOGS/LINGER/${CELL_TYPE}/${SAMPLE_NAME}"
+mkdir -p "${log_dir}"
+
+sbatch \
+    --export=PROJECT_DIR="$PROJECT_DIR",DATA_DIR="$DATA_DIR",RESULTS_DIR="$sample_result_dir",LOG_DIR="$log_dir",GRN_DIR="$GRN_DIR",CELL_TYPE="$CELL_TYPE",SAMPLE_NAME="$SAMPLE_NAME",SPECIES="$SPECIES",RNA_FILE="$rna_file",ATAC_FILE="$atac_file" \
+    --job-name="LINGER_${CELL_TYPE}_${SAMPLE_NAME}" \
+    --output=${log_dir}/LINGER.log \
+    --error=${log_dir}/LINGER.err \
+    "${PROJECT_DIR}/src/LINGER/run_linger.sh"
