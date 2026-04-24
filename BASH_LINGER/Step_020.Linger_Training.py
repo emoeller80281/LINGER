@@ -3,6 +3,8 @@ import pandas as pd
 import argparse
 import logging
 
+import linger_1_92.LINGER_tr as LINGER_tr
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 
@@ -24,7 +26,6 @@ args = parser.parse_args()
 
 output_dir = args.sample_data_dir + "/"
 
-import linger_1_92.LINGER_tr as LINGER_tr
 logging.info('Getting TSS')
 LINGER_tr.get_TSS(
     args.tss_motif_info_path,
@@ -52,17 +53,3 @@ LINGER_tr.training(
     )
 
 logging.info(f'FINISHED TRAINING')
-
-# elif args.method.lower() == "linger":
-#     import linger.LINGER_tr as LINGER_tr
-
-#     # Refines the bulk model by further training it on the single-cell data
-#     logging.info(f'\nBeginning LINGER single cell training...')
-#     LINGER_tr.training_cpu(
-#     args.bulk_model_dir,
-#     output_dir,
-#     args.activef,
-#     'Human'
-#     )
-
-#     logging.info(f'FINISHED TRAINING')

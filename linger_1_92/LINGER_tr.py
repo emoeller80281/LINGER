@@ -4,7 +4,6 @@ import torch.optim as optim
 from torch.nn import functional as F
 from scipy.stats import pearsonr
 from scipy.stats import spearmanr
-#load data
 import numpy as np
 import pandas as pd
 import random
@@ -15,13 +14,18 @@ from sklearn.datasets import make_regression
 from sklearn.model_selection import KFold
 import shap
 import logging
+from tqdm import tqdm
+import warnings
+import time
+import pandas as pd
+import numpy as np
+from joblib import Parallel,delayed
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 hidden_size  = 64
 hidden_size2 = 16
 output_size = 1
-from joblib import Parallel,delayed
 seed_value = 42
 
 class Net(nn.Module):
@@ -368,11 +372,7 @@ def RE_TG_dis(outdir, data_dir):
     temp['distance']=np.abs(a_with_b[7]-a_with_b[1])
     temp.to_csv(f'{outdir}RE_gene_distance.txt',sep='\t',index=None)
     
-from tqdm import tqdm
-import warnings
-import time
-import pandas as pd
-import numpy as np
+
 def training(GRNdir,method,outdir,data_dir,activef,species):
     if method=='LINGER':
         hidden_size  = 64
